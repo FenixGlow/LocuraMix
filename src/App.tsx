@@ -241,6 +241,7 @@ function AdminView({ products, orders, categories, onBack, setProducts, onCatego
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategory, setNewCategory] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [draft, setDraft] = useState({ title: '', description: '', price: '', category: 'Tecnología', stock: '', imageUrls: [] as string[], availableColors: [] as string[], availableSizes: [] as string[], availableShoeSizes: [] as string[] });
   const fileRef = useRef<HTMLInputElement>(null);
   const toggleColor = (color: string) => setDraft((d) => ({ ...d, availableColors: d.availableColors.includes(color) ? d.availableColors.filter((c) => c !== color) : [...d.availableColors, color] }));
@@ -257,7 +258,8 @@ function AdminView({ products, orders, categories, onBack, setProducts, onCatego
         if (url) urls.push(url);
       }
       setDraft((d) => ({ ...d, imageUrls: [...d.imageUrls, ...urls] }));
-    } catch { showToast('Error al subir la imagen'); }
+      setUploadError('');
+    } catch { setUploadError('Error al subir la imagen. Inténtalo nuevamente.'); }
     setUploading(false);
     if (fileRef.current) fileRef.current.value = '';
   };
@@ -287,6 +289,7 @@ function AdminView({ products, orders, categories, onBack, setProducts, onCatego
           <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void handleFileSelect(e.target.files)} />
           <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading || draft.imageUrls.length >= 10} className="upload-zone"><ImagePlus size={22} /><span>{uploading ? 'Subiendo...' : 'Seleccionar imágenes'}</span></button>
           {draft.imageUrls.length > 0 && <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">{draft.imageUrls.map((url, index) => <div key={index} className="upload-preview"><img src={url} alt="" /><button type="button" onClick={() => removeImage(index)} className="upload-remove"><X size={13} /></button></div>)}</div>}
+          {uploadError && <p className="mt-2 text-xs font-semibold text-[#c76643]">{uploadError}</p>}
         </div>
         <div className="sm:col-span-4"><span className="field-label">Colores disponibles (opcional)</span><div className="flex flex-wrap gap-2">{colorOptions.map((color) => <button key={color} type="button" onClick={() => toggleColor(color)} className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${draft.availableColors.includes(color) ? 'border-[#1b5e45] bg-[#eaf4ed] text-[#1b5e45]' : 'border-[#dfe7df] bg-white text-[#7d8981] hover:border-[#b9d4c1]'}`}><span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: colorSwatch[color] }} />{color}</button>)}</div></div>
         <div className="sm:col-span-4"><span className="field-label">Tallas de ropa (opcional)</span><div className="flex flex-wrap gap-2">{sizeOptions.map((size) => <button key={size} type="button" onClick={() => toggleSize(size)} className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${draft.availableSizes.includes(size) ? 'border-[#1b5e45] bg-[#eaf4ed] text-[#1b5e45]' : 'border-[#dfe7df] bg-white text-[#7d8981] hover:border-[#b9d4c1]'}`}>{size}</button>)}</div></div>
