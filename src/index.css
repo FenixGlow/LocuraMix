@@ -147,6 +147,15 @@ button { cursor: pointer; }
 .cod-highlight strong { display: block; font-size: 14px; }
 .cod-highlight span { display: block; margin-top: 2px; font-size: 11px; color: #3b5fbf; }
 .cod-highlight svg { color: #2563eb; }
+
+.price-block { display: flex; flex-direction: column; gap: 2px; }
+.price-discount-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.price-old { font-size: 16px; font-weight: 600; }
+.price-current { font-size: 30px; font-weight: 700; font-family: var(--font-display, inherit); color: #18221d; }
+.price-discount-badge { display: inline-flex; align-items: center; border-radius: 999px; background: #ef8c5a; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; }
+.payment-methods-mini { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12px; color: #718078; }
+.payment-methods-mini svg { color: #2b8a5d; }
+.payment-dot { width: 3px; height: 3px; border-radius: 50%; background: #c5d2c9; }
 .cod-payment-highlight { border-color: #2563eb !important; background: #eff6ff !important; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
 .cod-payment-highlight .payment-icon { background: #dbeafe; color: #2563eb; }
 .cod-payment-highlight strong { color: #1e40af; }
