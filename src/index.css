@@ -144,6 +144,10 @@ button { cursor: pointer; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .variant-section { margin-top: 16px; }
 .variant-label { margin-bottom: 8px; color: #44544b; font-size: 12px; font-weight: 800; letter-spacing: .04em; }
+.variant-label span { margin-left: 6px; color: #84958b; font-size: 10px; font-weight: 600; letter-spacing: 0; }
+.variant-required .variant-label { color: #b85e42; }
+.variant-required .variant-chip { border-color: #e7a083; }
+.variant-error { margin-top: 14px; border-radius: 12px; background: #fff0eb; padding: 10px 12px; color: #b85e42; font-size: 12px; font-weight: 700; }
 .variant-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #dfe7df; border-radius: 999px; background: white; color: #5c6a60; padding: 7px 13px; font-size: 12px; font-weight: 700; transition: .18s; }
 .variant-chip:hover { border-color: #b9d4c1; color: #1b5e45; }
 .variant-selected { border-color: #1b5e45; background: #eaf4ed; color: #1b5e45; }
