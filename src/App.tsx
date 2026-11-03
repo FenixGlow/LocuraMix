@@ -14,7 +14,7 @@ type Review = { id: string; product_id: string; user_id: string; user_name: stri
 type Product = { id: string; title: string; description: string; price: number; wholesale_price: number; original_price?: number | null; category: string; image_url: string; image_urls?: string[]; stock: number; badge: string | null; rating: number; is_visible?: boolean; available_colors?: string[]; available_sizes?: string[] };
 type CartItem = Product & { quantity: number; selectedColor?: string; selectedSize?: string };
 type Order = { id: string; user_id?: string | null; customer_name: string; customer_email: string; customer_phone: string; address: string; city: string; payment_method: string; items: CartItem[]; subtotal: number; shipping: number; discount: number; total: number; points_earned: number; status: string; created_at: string };
-type Profile = { user_id: string; first_name: string; last_name: string; national_id: string; phone: string; phone_country_code: string; department: string; city: string; address: string };
+type Profile = { user_id: string; first_name: string; last_name: string; national_id: string; phone: string; phone_country_code: string; department: string; city: string; address: string; points: number };
 type View = 'shop' | 'account' | 'admin' | 'category' | 'conditions' | 'product';
 
 const logo = '/Logotipo_e-commerce_LocuraMix_brillante.png';
@@ -75,12 +75,12 @@ function App() {
       const { data: dbOrders } = await supabase.from('store_orders').select('*').order('created_at', { ascending: false });
       setOrders((dbOrders ?? []) as Order[]);
       setIsAuthenticated(Boolean(sessionData.session));
-      if (sessionData.session) { setCustomerName(sessionData.session.user.email ?? ''); setIsAdmin(sessionData.session.user.app_metadata?.role === 'admin'); const { data: profileData } = await supabase.from('customer_profiles').select('*').maybeSingle(); if (profileData) { const loadedProfile = profileData as Profile; setProfile(loadedProfile); setCustomerName(`${loadedProfile.first_name} ${loadedProfile.last_name}`); } }
+      if (sessionData.session) { setCustomerName(sessionData.session.user.email ?? ''); setIsAdmin(sessionData.session.user.app_metadata?.role === 'admin'); const { data: profileData } = await supabase.from('customer_profiles').select('*').maybeSingle(); if (profileData) { const loadedProfile = profileData as Profile; setProfile(loadedProfile); setPoints(loadedProfile.points ?? 0); setCustomerName(`${loadedProfile.first_name} ${loadedProfile.last_name}`); } else { setPoints(0); } }
     };
     void load();
     const client = supabase;
     if (!client) return;
-    const { data: authListener } = client.auth.onAuthStateChange((_event, session) => { void (async () => { if (!session) { setProfile(null); setOrders([]); setIsAdmin(false); setIsAuthenticated(false); setCustomerName(''); setPoints(0); return; } setIsAuthenticated(true); setIsAdmin(session.user.app_metadata?.role === 'admin'); setCustomerName(session.user.email ?? ''); const { data: currentOrders } = await client.from('store_orders').select('*').order('created_at', { ascending: false }); setOrders((currentOrders ?? []) as Order[]); const { data: profileData } = await client.from('customer_profiles').select('*').eq('user_id', session.user.id).maybeSingle(); if (profileData) { const loadedProfile = profileData as Profile; setProfile(loadedProfile); setCustomerName(`${loadedProfile.first_name} ${loadedProfile.last_name}`); } })(); });
+    const { data: authListener } = client.auth.onAuthStateChange((_event, session) => { void (async () => { if (!session) { setProfile(null); setOrders([]); setIsAdmin(false); setIsAuthenticated(false); setCustomerName(''); setPoints(0); return; } setIsAuthenticated(true); setIsAdmin(session.user.app_metadata?.role === 'admin'); setCustomerName(session.user.email ?? ''); const { data: currentOrders } = await client.from('store_orders').select('*').order('created_at', { ascending: false }); setOrders((currentOrders ?? []) as Order[]); const { data: profileData } = await client.from('customer_profiles').select('*').eq('user_id', session.user.id).maybeSingle(); if (profileData) { const loadedProfile = profileData as Profile; setProfile(loadedProfile); setPoints(loadedProfile.points ?? 0); setCustomerName(`${loadedProfile.first_name} ${loadedProfile.last_name}`); } else { setPoints(0); } })(); });
     return () => authListener.subscription.unsubscribe();
   }, []);
 
@@ -128,14 +128,15 @@ function App() {
       orderUserId = sessionData.session?.user.id ?? null;
     }
     const order = { user_id: orderUserId, customer_name: form.name, customer_email: form.email, customer_phone: form.phone, address: form.address, city: form.city, payment_method: form.payment, items: cart, subtotal, shipping, discount, total, points_earned: form.registered && orderUserId ? Math.floor(total / 10000) : 0, status: 'Procesando' };
+    let awardedPoints = order.points_earned;
     if (supabase) {
-      const { data } = await supabase.from('store_orders').insert(order).select().maybeSingle();
-      if (data) setOrders((current) => [data as Order, ...current]);
+      const { data: orderData } = await supabase.from('store_orders').insert(order).select().maybeSingle();
+      if (orderData) { awardedPoints = orderData.points_earned; setOrders((current) => [orderData as Order, ...current]); }
     } else {
       setOrders((current) => [{ ...order, id: `local-${Date.now()}`, created_at: new Date().toISOString() } as Order, ...current]);
     }
-    setPoints((current) => current + order.points_earned);
-    setCart([]); setCouponApplied(false); setDrawer(null); showToast(form.registered ? `Pedido confirmado. Ganaste ${order.points_earned} puntos` : 'Pedido confirmado como invitado');
+    setPoints((current) => current + awardedPoints);
+    setCart([]); setCouponApplied(false); setDrawer(null); showToast(orderUserId ? `Pedido confirmado. Ganaste ${awardedPoints} puntos` : 'Pedido confirmado como invitado');
   };
   const goHome = () => { setSelectedProduct(null); setView('shop'); setDrawer(null); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const openProduct = (product: Product) => { setSelectedProduct(product); setView('product'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
@@ -166,7 +167,7 @@ function App() {
       {view === 'category' && <CategoryPage category={category} products={filteredProducts} onBack={goHome} onAdd={addToCart} onOpen={openProduct} />}
       {view === 'conditions' && <ConditionsPage onBack={goHome} />}
       {view === 'account' && (isAuthenticated ? <AccountView profile={profile} name={customerName} points={points} orders={orders} onBack={goHome} isAdmin={isAdmin} onAdmin={() => setView('admin')} onLogout={async () => { if (supabase) { const { error } = await supabase.auth.signOut(); if (error) { showToast('No pudimos cerrar la sesión.'); return; } } setProfile(null); setOrders([]); setIsAdmin(false); setIsAuthenticated(false); setCustomerName(''); setPoints(0); setView('shop'); setDrawer(null); showToast('Sesión cerrada correctamente'); }} /> : <AuthView onSuccess={() => setIsAuthenticated(true)} />)}
-      {view === 'admin' && <AdminView products={products} orders={orders} categories={categoriesList} onBack={goHome} setProducts={setProducts} onCategoriesChange={setCategoriesList} onToggleProduct={async (id, isVisible) => { setProducts((current) => current.map((product) => product.id === id ? { ...product, is_visible: isVisible } : product)); if (supabase) await supabase.from('store_products').update({ is_visible: isVisible }).eq('id', id); }} onDeleteProduct={async (id) => { setProducts((current) => current.filter((product) => product.id !== id)); if (supabase) await supabase.from('store_products').delete().eq('id', id); }} onStatusChange={async (id, status) => { setOrders((current) => current.map((order) => order.id === id ? { ...order, status } : order)); if (supabase) await supabase.from('store_orders').update({ status }).eq('id', id); }} />}
+      {view === 'admin' && <AdminView products={products} orders={orders} categories={categoriesList} onBack={goHome} setProducts={setProducts} onCategoriesChange={setCategoriesList} onToggleProduct={async (id, isVisible) => { setProducts((current) => current.map((product) => product.id === id ? { ...product, is_visible: isVisible } : product)); if (supabase) await supabase.from('store_products').update({ is_visible: isVisible }).eq('id', id); }} onDeleteProduct={async (id) => { setProducts((current) => current.filter((product) => product.id !== id)); if (supabase) await supabase.from('store_products').delete().eq('id', id); }} onOrdersChange={setOrders} onStatusChange={async (id, status) => { setOrders((current) => current.map((order) => order.id === id ? { ...order, status } : order)); if (supabase) await supabase.from('store_orders').update({ status }).eq('id', id); }} />}
 
       <footer className="border-t border-[#e5eae5] bg-white"><div className="mx-auto flex max-w-[1240px] flex-col gap-5 px-5 py-8 text-sm text-[#738078] sm:flex-row sm:items-center sm:justify-between lg:px-8"><div className="flex items-center gap-3"><img src={logo} className="h-8 w-auto object-contain" /><span>Compras con buena vibra.</span></div><div className="flex gap-5"><span>Envíos nacionales</span><span>Pago seguro</span><span>Soporte humano</span></div></div></footer>
 
@@ -273,7 +274,7 @@ function AdminOrderCard({ order, onStatusChange }: { order: Order; onStatusChang
   </article>;
 }
 
-function AdminView({ products, orders, categories, onBack, setProducts, onCategoriesChange, onToggleProduct, onDeleteProduct, onStatusChange }: { products: Product[]; orders: Order[]; categories: string[]; onBack: () => void; setProducts: (products: Product[]) => void; onCategoriesChange: (categories: string[]) => void; onToggleProduct: (id: string, isVisible: boolean) => Promise<void>; onDeleteProduct: (id: string) => Promise<void>; onStatusChange: (id: string, status: string) => Promise<void> }) {
+function AdminView({ products, orders, categories, onBack, setProducts, onCategoriesChange, onToggleProduct, onDeleteProduct, onOrdersChange, onStatusChange }: { products: Product[]; orders: Order[]; categories: string[]; onBack: () => void; setProducts: (products: Product[]) => void; onCategoriesChange: (categories: string[]) => void; onToggleProduct: (id: string, isVisible: boolean) => Promise<void>; onDeleteProduct: (id: string) => Promise<void>; onOrdersChange: (orders: Order[]) => void; onStatusChange: (id: string, status: string) => Promise<void> }) {
   const [tab, setTab] = useState<'products' | 'orders' | 'billing'>('products');
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -282,6 +283,14 @@ function AdminView({ products, orders, categories, onBack, setProducts, onCatego
   const [uploadError, setUploadError] = useState('');
   const [draft, setDraft] = useState({ title: '', description: '', price: '', originalPrice: '', category: 'Tecnología', stock: '', imageUrls: [] as string[], availableColors: [] as string[], availableSizes: [] as string[], availableShoeSizes: [] as string[] });
   const fileRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!supabase) return;
+    const reloadOrders = async () => {
+      const { data } = await supabase.from('store_orders').select('*').order('created_at', { ascending: false });
+      if (data) onOrdersChange(data as Order[]);
+    };
+    void reloadOrders();
+  }, [onOrdersChange]);
   const toggleColor = (color: string) => setDraft((d) => ({ ...d, availableColors: d.availableColors.includes(color) ? d.availableColors.filter((c) => c !== color) : [...d.availableColors, color] }));
   const toggleSize = (size: string) => setDraft((d) => ({ ...d, availableSizes: d.availableSizes.includes(size) ? d.availableSizes.filter((s) => s !== size) : [...d.availableSizes, size] }));
   const toggleShoeSize = (size: string) => setDraft((d) => ({ ...d, availableShoeSizes: d.availableShoeSizes.includes(size) ? d.availableShoeSizes.filter((s) => s !== size) : [...d.availableShoeSizes, size] }));
